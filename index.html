@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gecko IT Services — Mileage Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --dark: #0f1a10; --dark2: #1b2b1d;
+  --green: #2e7d32; --green-light: #7eba7e; --green-pale: #e8f5e9;
+  --amber: #b7600a; --amber-pale: #fff8f0;
+  --red: #c0392b; --red-pale: #fff4f4;
+  --info: #1565c0; --info-pale: #e3f2fd;
+  --border: #e0ddd6; --bg: #f9f7f3; --white: #ffffff;
+  --text: #1a1a1a; --text-mid: #555; --text-light: #888;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── LOGIN SCREEN ── */
+#loginScreen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--dark);
+}
+.login-card {
+  background: var(--dark2); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 48px 40px; text-align: center; max-width: 380px; width: 100%;
+}
+.login-logo { font-size: 28px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+.login-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 36px; }
+.btn-signin {
+  background: var(--green); color: white; border: none; padding: 13px 32px;
+  border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.btn-signin:hover { background: #1b5e20; }
+.btn-signin svg { width: 18px; height: 18px; }
+.login-note { font-size: 11px; color: rgba(255,255,255,0.2); margin-top: 20px; line-height: 1.6; }
+
+/* ── APP ── */
+#appScreen { display: none; }
+.header { background: var(--dark2); padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.header-left h1 { font-size: 20px; font-weight: 600; color: #fff; }
+.header-left p { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.user-chip { font-size: 12px; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.07); padding: 5px 12px; border-radius: 20px; }
+.tax-year { font-size: 11px; background: rgba(255,255,255,0.08); color: var(--green-light); padding: 6px 12px; border-radius: 6px; letter-spacing: 0.06em; }
+.btn-signout { font-size: 11px; color: rgba(255,255,255,0.3); background: none; border: 1px solid rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 5px; cursor: pointer; font-family: inherit; }
+.btn-signout:hover { color: rgba(255,255,255,0.6); }
+.tabs { background: var(--dark); padding: 0 32px; display: flex; gap: 4px; overflow-x: auto; }
+.tab { padding: 14px 22px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.4); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.tab:hover { color: rgba(255,255,255,0.7); }
+.tab.active { color: var(--green-light); border-bottom-color: var(--green-light); }
+.main { max-width: 980px; margin: 0 auto; padding: 32px 24px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px; }
+.sum-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.sum-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-light); margin-bottom: 6px; }
+.sum-val { font-size: 22px; font-weight: 600; }
+.sum-sub { font-size: 11px; color: var(--text-light); margin-top: 3px; }
+.sum-card.green { border: 2px solid var(--green); } .sum-card.green .sum-val { color: var(--green); }
+.sum-card.blue { border: 2px solid var(--info); } .sum-card.blue .sum-val { color: var(--info); }
+.sum-card.amber { border: 2px solid var(--amber); } .sum-card.amber .sum-val { color: var(--amber); }
+.rate-info { background: var(--green-pale); border: 1px solid #a5d6a7; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: var(--green); margin-bottom: 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.rate-info span { font-weight: 500; }
+.form-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+.form-title { font-size: 14px; font-weight: 600; color: var(--dark2); margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+.form-title::before { content: '+'; background: var(--green); color: white; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+.form-row { display: grid; gap: 12px; margin-bottom: 12px; }
+.r4 { grid-template-columns: 2fr 1fr 1fr 1fr; }
+.r2 { grid-template-columns: 2fr 1fr; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-light); }
+.field input, .field select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 7px; font-family: inherit; font-size: 13.5px; color: var(--text); background: var(--bg); }
+.field input:focus, .field select:focus { outline: none; border-color: var(--green); background: var(--white); }
+.field input.filled { background: var(--green-pale); border-color: #a5d6a7; color: var(--green); font-weight: 500; }
+.hint { font-size: 11px; color: var(--green); margin-top: 3px; display: none; }
+.hint.show { display: block; }
+.btn-add { background: var(--green); color: white; border: none; padding: 10px 28px; border-radius: 7px; font-family: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; margin-top: 6px; }
+.btn-add:hover { background: #1b5e20; }
+.btn-add:disabled { background: #aaa; cursor: not-allowed; }
+.table-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+.table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.table-header h3 { font-size: 14px; font-weight: 600; color: var(--dark2); }
+.filters { display: flex; gap: 6px; }
+.fb { padding: 5px 12px; border: 1px solid var(--border); background: var(--bg); border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit; color: var(--text-mid); }
+.fb.active { background: var(--green); color: white; border-color: var(--green); }
+table { width: 100%; border-collapse: collapse; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-light); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); background: var(--bg); }
+td { font-size: 13px; padding: 10px 14px; border-bottom: 1px solid #f5f2ec; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafaf8; }
+.badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+.p-badge { background: var(--dark2); color: #a8d8a8; }
+.j-badge { background: var(--info-pale); color: var(--info); }
+.amt { font-weight: 600; color: var(--green); }
+.rb { font-size: 11px; color: var(--text-light); background: var(--bg); padding: 2px 6px; border-radius: 3px; }
+.del { background: none; border: none; color: #ccc; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+.del:hover { color: var(--red); background: var(--red-pale); }
+.empty { text-align: center; padding: 48px; color: var(--text-light); font-size: 13px; }
+.cm { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+.cm h2 { font-size: 14px; font-weight: 600; color: var(--dark2); margin-bottom: 5px; }
+.cm p { font-size: 12.5px; color: var(--text-light); margin-bottom: 18px; }
+.cm-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: 8px; margin-bottom: 18px; }
+.cm-item { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; }
+.cm-name { font-size: 13px; font-weight: 500; }
+.cm-right { display: flex; align-items: center; gap: 6px; }
+.cm-mi { font-size: 12px; color: var(--green); font-weight: 600; }
+.cm-btn { font-size: 11px; color: var(--text-light); cursor: pointer; padding: 2px 5px; border-radius: 3px; border: none; background: none; font-family: inherit; }
+.cm-btn:hover { background: var(--border); }
+.cm-add { display: grid; grid-template-columns: 1fr 130px 100px; gap: 8px; }
+.cm-add input { padding: 8px 11px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 13px; background: var(--bg); }
+.cm-add input:focus { outline: none; border-color: var(--green); background: var(--white); }
+.btn-sm { background: var(--dark2); color: white; border: none; padding: 8px 14px; border-radius: 6px; font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.mg { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.mc { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.mc-hd { padding: 14px 18px; background: var(--dark2); }
+.mc-hd h3 { font-size: 13px; font-weight: 600; color: #a8d8a8; }
+.mc-hd p { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+.mc-hd.blue { background: #1b2b4d; }
+.mc-hd.blue h3 { color: #90caf9; }
+.mrow { display: flex; justify-content: space-between; padding: 9px 18px; border-bottom: 1px solid #f5f2ec; font-size: 13px; }
+.mrow:last-child { border-bottom: none; }
+.mrow span:first-child { color: var(--text-mid); }
+.mrow span:last-child { font-weight: 500; }
+.mtot { display: flex; justify-content: space-between; padding: 12px 18px; border-top: 2px solid var(--border); }
+.mtot span:first-child { font-size: 13px; font-weight: 600; }
+.mtot span:last-child { font-size: 18px; font-weight: 600; color: var(--green); }
+.hmrc-box { background: var(--amber-pale); border: 1px solid #ffcc80; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; font-size: 12.5px; color: var(--amber); line-height: 1.6; }
+.hmrc-box strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.exp-bar { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.exp-bar p { font-size: 13px; color: var(--text-mid); }
+.btn-exp { background: var(--dark2); color: white; border: none; padding: 8px 18px; border-radius: 6px; font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.ann { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+.summary-box { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-top: 4px; }
+.summary-box h3 { font-size: 14px; font-weight: 600; color: var(--dark2); margin-bottom: 14px; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--dark2); color: #a8d8a8; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; z-index: 999; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.loading-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: var(--green); z-index: 9999; display: none; }
+.loading-bar.show { display: block; animation: lb 1.2s ease-in-out infinite; }
+@keyframes lb { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+@media(max-width:700px){
+  .summary-grid{grid-template-columns:1fr 1fr;}
+  .r4,.r2{grid-template-columns:1fr 1fr;}
+  .mg{grid-template-columns:1fr;}
+  .header{flex-direction:column;gap:10px;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar"></div>
+
+<!-- ── LOGIN ── -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🦎 Gecko IT Services</div>
+    <div class="login-sub">Mileage Tracker · Tax Year 2026/27</div>
+    <button class="btn-signin" onclick="signIn()">
+      <svg viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+      </svg>
+      Sign in with Microsoft
+    </button>
+    <div class="login-note">Sign in with your Gecko IT Microsoft 365 account.<br>Data is stored securely in your SharePoint.</div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="appScreen">
+  <div class="header">
+    <div class="header-left">
+      <h1>Gecko IT Services — Mileage Tracker</h1>
+      <p>HMRC approved mileage log · Sole Trader · Philip Morris &amp; Jack Morris · Tax Year 2026/27</p>
+    </div>
+    <div class="header-right">
+      <span class="user-chip" id="userChip">—</span>
+      <div class="tax-year">45p/mile · First 10,000</div>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('log')">Journey Log</div>
+    <div class="tab" onclick="switchTab('clients')">Client Distances</div>
+    <div class="tab" onclick="switchTab('summary')">Monthly Summary</div>
+    <div class="tab" onclick="switchTab('export')">Export / HMRC</div>
+  </div>
+
+  <div class="main">
+
+    <!-- LOG -->
+    <div id="tab-log">
+      <div class="summary-grid">
+        <div class="sum-card green"><div class="sum-label">Philip — Total Due</div><div class="sum-val" id="pTot">£0.00</div><div class="sum-sub" id="pMi">0 miles recorded</div></div>
+        <div class="sum-card blue"><div class="sum-label">Jack — Total Due</div><div class="sum-val" id="jTot">£0.00</div><div class="sum-sub" id="jMi">0 miles recorded</div></div>
+        <div class="sum-card green"><div class="sum-label">Combined Total</div><div class="sum-val" id="cTot">£0.00</div><div class="sum-sub">Business expense (self-assessment)</div></div>
+        <div class="sum-card amber"><div class="sum-label">Income Tax Saving (est. 20%)</div><div class="sum-val" id="tSav">£0.00</div><div class="sum-sub">Effective tax saving</div></div>
+      </div>
+      <div class="rate-info">
+        <span>HMRC Approved Rates:</span><span>First 10,000 miles → 45p/mile</span><span>Above 10,000 miles → 25p/mile</span><span>Select a client to auto-fill distance ↓</span>
+      </div>
+      <div class="form-card">
+        <div class="form-title">Add Journey</div>
+        <div class="form-row r4">
+          <div class="field">
+            <label>Client / Destination</label>
+            <select id="f-client" onchange="onClientSelect()">
+              <option value="">— Select client —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Miles (round trip)</label>
+            <input type="number" id="f-miles" placeholder="Auto-fills" min="1">
+            <span class="hint" id="f-hint"></span>
+          </div>
+          <div class="field">
+            <label>Driver</label>
+            <select id="f-driver">
+              <option value="Philip">Philip Morris</option>
+              <option value="Jack">Jack Morris</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="f-date">
+          </div>
+        </div>
+        <div class="form-row r2">
+          <div class="field">
+            <label>Purpose</label>
+            <select id="f-purpose">
+              <option>Client site visit — IT support</option>
+              <option>Client site visit — installation</option>
+              <option>Client site visit — maintenance</option>
+              <option>Client site visit — survey</option>
+              <option>Client site visit — sales meeting</option>
+              <option>Hardware delivery / collection</option>
+              <option>Supplier visit</option>
+              <option>Accountant / professional meeting</option>
+              <option>Other business travel</option>
+            </select>
+          </div>
+          <div class="field" style="justify-content:flex-end;">
+            <button class="btn-add" id="btnAdd" onclick="addJourney()">Add Journey</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <h3>All Journeys — <span id="jCount">0</span> recorded</h3>
+          <div class="filters">
+            <button class="fb active" onclick="filter('all',this)">All</button>
+            <button class="fb" onclick="filter('Philip',this)">Philip</button>
+            <button class="fb" onclick="filter('Jack',this)">Jack</button>
+          </div>
+        </div>
+        <table><thead><tr><th>Date</th><th>Driver</th><th>Destination</th><th>Purpose</th><th>Miles</th><th>Rate</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="jTable"><tr><td colspan="8" class="empty">Loading journeys…</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div id="tab-clients" style="display:none;">
+      <div class="cm">
+        <h2>Client Distances</h2>
+        <p>Pre-set round-trip distances from your home base. Selecting a client when adding a journey auto-fills the mileage. Edit any distance or add new clients below.</p>
+        <div class="cm-grid" id="cmGrid"><div style="color:var(--text-light);font-size:13px;">Loading clients…</div></div>
+        <div style="font-size:13px;font-weight:600;color:var(--dark2);margin-bottom:10px;">Add New Client</div>
+        <div class="cm-add">
+          <input type="text" id="nc-name" placeholder="Client / destination name">
+          <input type="number" id="nc-miles" placeholder="Round trip miles" min="1">
+          <button class="btn-sm" onclick="addClient()">Add Client</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MONTHLY -->
+    <div id="tab-summary" style="display:none;">
+      <div class="mg" id="mSummary">
+        <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-light);font-size:13px;">No journeys recorded yet.</div>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div id="tab-export" style="display:none;">
+      <div class="hmrc-box">
+        <strong>HMRC Mileage Record Requirements</strong>
+        This log records all required fields: date, destination, business purpose, miles and reimbursement amount. Keep for 6 years after tax year end. As a sole trader, claim mileage allowance as a business expense on your Self Assessment tax return (SA103). Jack's mileage is reimbursed directly — retain bank statements as evidence of payment.
+      </div>
+      <div class="exp-bar"><p>Download full CSV for your accountant or HMRC records</p><button class="btn-exp" onclick="exportCSV()">Download CSV</button></div>
+      <div class="mg">
+        <div class="ann">
+          <div class="mc-hd"><h3>Philip Morris — Full Year</h3><p>Sole Trader · Tesla</p></div>
+          <div id="pAnn"></div>
+          <div class="mtot"><span>Total reimbursement</span><span id="pAnnTot">£0.00</span></div>
+        </div>
+        <div class="ann">
+          <div class="mc-hd blue"><h3>Jack Morris — Full Year</h3><p>Employee · Hyundai Kona</p></div>
+          <div id="jAnn"></div>
+          <div class="mtot"><span>Total reimbursement</span><span id="jAnnTot" style="color:var(--info);">£0.00</span></div>
+        </div>
+      </div>
+      <div class="summary-box">
+        <h3>Tax Year Summary — Gecko IT Services</h3>
+        <div class="mrow"><span>Philip — total miles</span><span id="ex-pm">0</span></div>
+        <div class="mrow"><span>Jack — total miles</span><span id="ex-jm">0</span></div>
+        <div class="mrow"><span>Philip — total reimbursement</span><span id="ex-pt">£0.00</span></div>
+        <div class="mrow"><span>Jack — total reimbursement</span><span id="ex-jt">£0.00</span></div>
+        <div class="mrow"><span>Combined (business expense)</span><span id="ex-ct">£0.00</span></div>
+        <div class="mrow" style="border-top:2px solid var(--border);margin-top:4px;padding-top:10px;">
+          <span style="font-weight:600;">Income tax saving (est. 20%)</span>
+          <span id="ex-ts" style="font-weight:600;color:var(--green);">£0.00</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const CLIENT_ID  = 'c41290c7-3747-4fc3-8e79-c452a7cab1f7';
+const TENANT_ID  = 'e508283a-b42d-4afa-bdc2-eb16dcd9933d';
+const SP_HOST    = 'geckoitservices812.sharepoint.com';
+const SP_SITE    = '/sites/GeckoITClientPortal';
+const JOURNEYS   = 'MileageJourneys';
+const CLIENTS    = 'MileageClients';
+
+const SCOPES = ['https://geckoitservices812.sharepoint.com/AllSites.Manage'];
+
+const msalConfig = {
+  auth: {
+    clientId: CLIENT_ID,
+    authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+    redirectUri: window.location.origin + window.location.pathname
+  },
+  cache: { cacheLocation: 'sessionStorage' }
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+// ─── DEFAULT CLIENTS ──────────────────────────────────────────────────────────
+const DEFAULTS = [
+  {name:'Freestons, Totton',miles:25},{name:'Cowan Consultancy',miles:16},
+  {name:'West Country Fires',miles:25},{name:'Access Systems, Totton',miles:18},
+  {name:'Clarke Lane Engineering',miles:8},{name:'PM Packing',miles:18},
+  {name:'Daron Motors, Hayling',miles:42},{name:'Onsite Commercial, Portswood',miles:8},
+  {name:'Onsite Commercial, Curdridge',miles:10},{name:'MSA Safety',miles:20},
+  {name:'Regals',miles:8},{name:'SSA',miles:20},{name:'Brent King, Gosport',miles:30},
+  {name:'H2O Homes',miles:138},{name:'Technix',miles:10},
+  {name:'Hillcrest Engineering',miles:22},{name:'Southern Glass',miles:4},
+  {name:'Brazier Interiors',miles:20},{name:'Martin Ward, Romsey',miles:20},
+  {name:'Quality Mouldings',miles:32},{name:'Connect Data',miles:50},
+  {name:'ALS Locksmiths',miles:26},{name:'Snowskool, Southampton',miles:6},
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let journeys = [], clients = [], cf = 'all', accessToken = null;
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+async function init() {
+  await msalInstance.initialize();
+  // Handle redirect after login
+  const resp = await msalInstance.handleRedirectPromise();
+  if (resp) {
+    accessToken = resp.accessToken;
+    showApp(resp.account);
+    await loadData();
+    return;
+  }
+  // Check if already signed in
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) {
+    try {
+      const tokenResp = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
+      accessToken = tokenResp.accessToken;
+      showApp(accounts[0]);
+      await loadData();
+    } catch {
+      // Silent token failed — show login
+    }
+  }
+}
+
+async function signIn() {
+  await msalInstance.loginRedirect({ scopes: SCOPES });
+}
+
+async function signOut() {
+  await msalInstance.logoutRedirect();
+}
+
+function showApp(account) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('userChip').textContent = account.name || account.username;
+  document.getElementById('f-date').valueAsDate = new Date();
+}
+
+async function getToken() {
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts.length) throw new Error('Not signed in');
+  const resp = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
+  return resp.accessToken;
+}
+
+// ─── GRAPH / SHAREPOINT HELPERS ───────────────────────────────────────────────
+const BASE = `https://graph.microsoft.com/v1.0/sites/${SP_HOST}:${SP_SITE}`;
+
+async function graphGet(url) {
+  const token = await getToken();
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`GET failed ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function graphPost(url, body) {
+  const token = await getToken();
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`POST failed ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function graphPatch(url, body) {
+  const token = await getToken();
+  const r = await fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`PATCH failed ${r.status}: ${await r.text()}`);
+}
+
+async function graphDelete(url) {
+  const token = await getToken();
+  const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`DELETE failed ${r.status}: ${await r.text()}`);
+}
+
+// Get list items via Graph — handles paging
+async function getListItems(listName, fields) {
+  let url = `${BASE}:/lists/${listName}/items?expand=fields(select=${fields.join(',')})&$top=999`;
+  let items = [];
+  while (url) {
+    const data = await graphGet(url);
+    items = items.concat(data.value);
+    url = data['@odata.nextLink'] || null;
+  }
+  return items;
+}
+
+async function createListItem(listName, fields) {
+  return graphPost(`${BASE}:/lists/${listName}/items`, { fields });
+}
+
+async function updateListItem(listName, itemId, fields) {
+  return graphPatch(`${BASE}:/lists/${listName}/items/${itemId}/fields`, fields);
+}
+
+async function deleteListItem(listName, itemId) {
+  return graphDelete(`${BASE}:/lists/${listName}/items/${itemId}`);
+}
+
+// ─── LOAD DATA ───────────────────────────────────────────────────────────────
+async function loadData() {
+  setLoading(true);
+  try {
+    // Load clients
+    const cItems = await getListItems(CLIENTS, ['id','Title','TypicalMiles']);
+    if (cItems.length === 0) {
+      // First run — seed defaults
+      toast('First run: adding default clients…');
+      for (const c of DEFAULTS) {
+        await createListItem(CLIENTS, { Title: c.name, TypicalMiles: c.miles });
+      }
+      // Re-fetch after seeding
+      const seeded = await getListItems(CLIENTS, ['id','Title','TypicalMiles']);
+      clients = seeded.map(i => ({ id: i.id, name: i.fields.Title, miles: i.fields.TypicalMiles || 0 }));
+    } else {
+      clients = cItems.map(i => ({ id: i.id, name: i.fields.Title, miles: i.fields.TypicalMiles || 0 }));
+    }
+
+    // Load journeys
+    const jItems = await getListItems(JOURNEYS, ['id','Title','Driver','JourneyDate','Miles','Purpose','Amount']);
+    journeys = jItems.map(i => ({
+      id: i.id,
+      client: i.fields.Title,
+      driver: i.fields.Driver,
+      date: i.fields.JourneyDate ? i.fields.JourneyDate.split('T')[0] : '',
+      miles: i.fields.Miles || 0,
+      purpose: i.fields.Purpose || '',
+      amount: i.fields.Amount || 0
+    }));
+
+    recalc();
+    buildDD();
+    renderCM();
+    render();
+  } catch (e) {
+    toast('Error loading data — check console');
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+// ─── LOADING ─────────────────────────────────────────────────────────────────
+function setLoading(on) {
+  document.getElementById('loadingBar').classList.toggle('show', on);
+  const btn = document.getElementById('btnAdd');
+  if (btn) btn.disabled = on;
+}
+
+// ─── CLIENT DROPDOWN ─────────────────────────────────────────────────────────
+function buildDD() {
+  const s = document.getElementById('f-client');
+  s.innerHTML = '<option value="">— Select client —</option>';
+  [...clients].sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.name; o.dataset.miles = c.miles;
+    o.textContent = `${c.name}  (${c.miles} mi)`;
+    s.appendChild(o);
+  });
+  const ot = document.createElement('option');
+  ot.value = '__other__'; ot.textContent = '— Other destination —';
+  s.appendChild(ot);
+}
+
+function onClientSelect() {
+  const s = document.getElementById('f-client');
+  const o = s.options[s.selectedIndex];
+  const mi = document.getElementById('f-miles');
+  const h = document.getElementById('f-hint');
+  if (o.dataset.miles) {
+    mi.value = o.dataset.miles; mi.classList.add('filled');
+    h.textContent = `Pre-set: ${o.dataset.miles} miles round trip. Adjust if needed.`; h.classList.add('show');
+  } else {
+    mi.value = ''; mi.classList.remove('filled'); h.classList.remove('show');
+  }
+}
+
+// ─── CLIENT MANAGER ──────────────────────────────────────────────────────────
+function renderCM() {
+  document.getElementById('cmGrid').innerHTML = [...clients].sort((a, b) => a.name.localeCompare(b.name)).map(c => `
+    <div class="cm-item">
+      <span class="cm-name">${c.name}</span>
+      <span class="cm-right">
+        <span class="cm-mi">${c.miles} mi</span>
+        <button class="cm-btn" onclick="editC('${c.id}')">edit</button>
+        <button class="cm-btn" style="color:var(--red)" onclick="removeC('${c.id}')">×</button>
+      </span>
+    </div>`).join('');
+}
+
+async function addClient() {
+  const n = document.getElementById('nc-name').value.trim();
+  const m = parseInt(document.getElementById('nc-miles').value);
+  if (!n || !m || m <= 0) { toast('Enter name and miles'); return; }
+  if (clients.find(c => c.name.toLowerCase() === n.toLowerCase())) { toast('Already exists'); return; }
+  setLoading(true);
+  try {
+    const item = await createListItem(CLIENTS, { Title: n, TypicalMiles: m });
+    clients.push({ id: item.id, name: n, miles: m });
+    buildDD(); renderCM();
+    document.getElementById('nc-name').value = '';
+    document.getElementById('nc-miles').value = '';
+    toast(`${n} added — ${m} miles`);
+  } catch (e) { toast('Error saving client'); console.error(e); }
+  setLoading(false);
+}
+
+async function editC(id) {
+  const c = clients.find(x => x.id === id); if (!c) return;
+  const v = prompt(`Update miles for ${c.name} (current: ${c.miles}):`, c.miles);
+  if (v === null) return;
+  const m = parseInt(v);
+  if (!m || m <= 0) { toast('Invalid'); return; }
+  setLoading(true);
+  try {
+    await updateListItem(CLIENTS, id, { TypicalMiles: m });
+    c.miles = m; buildDD(); renderCM(); toast(`${c.name} updated — ${m} miles`);
+  } catch (e) { toast('Error updating client'); console.error(e); }
+  setLoading(false);
+}
+
+async function removeC(id) {
+  const c = clients.find(x => x.id === id); if (!c) return;
+  if (!confirm(`Remove ${c.name}?`)) return;
+  setLoading(true);
+  try {
+    await deleteListItem(CLIENTS, id);
+    clients = clients.filter(x => x.id !== id);
+    buildDD(); renderCM(); toast(`${c.name} removed`);
+  } catch (e) { toast('Error removing client'); console.error(e); }
+  setLoading(false);
+}
+
+// ─── JOURNEYS ────────────────────────────────────────────────────────────────
+async function addJourney() {
+  const sel = document.getElementById('f-client');
+  const dest = sel.value && sel.value !== '__other__' ? sel.value : '';
+  const miles = parseFloat(document.getElementById('f-miles').value);
+  const driver = document.getElementById('f-driver').value;
+  const date = document.getElementById('f-date').value;
+  const purpose = document.getElementById('f-purpose').value;
+  if (!dest) { toast('Select a destination'); return; }
+  if (!miles || miles <= 0) { toast('Enter miles'); return; }
+  if (!date) { toast('Enter date'); return; }
+  const amount = calcAmt(driver, miles);
+  setLoading(true);
+  try {
+    const item = await createListItem(JOURNEYS, {
+      Title: dest, Driver: driver,
+      JourneyDate: date, Miles: miles,
+      Purpose: purpose, Amount: parseFloat(amount.toFixed(2))
+    });
+    journeys.unshift({ id: item.id, client: dest, driver, date, miles, purpose, amount });
+    recalc();
+    await syncAmounts(driver);
+    render();
+    toast(`Journey added — ${fmt(amount)} for ${driver}`);
+    document.getElementById('f-client').value = '';
+    document.getElementById('f-miles').value = '';
+    document.getElementById('f-miles').classList.remove('filled');
+    document.getElementById('f-hint').classList.remove('show');
+  } catch (e) { toast('Error saving journey'); console.error(e); }
+  setLoading(false);
+}
+
+async function delJourney(id) {
+  const j = journeys.find(x => x.id === id); if (!j) return;
+  setLoading(true);
+  try {
+    await deleteListItem(JOURNEYS, id);
+    journeys = journeys.filter(x => x.id !== id);
+    recalc();
+    await syncAmounts(j.driver);
+    render(); toast('Journey removed');
+  } catch (e) { toast('Error removing journey'); console.error(e); }
+  setLoading(false);
+}
+
+async function syncAmounts(driver) {
+  const affected = journeys.filter(j => j.driver === driver);
+  for (const j of affected) {
+    try { await updateListItem(JOURNEYS, j.id, { Amount: parseFloat(j.amount.toFixed(2)) }); } catch {}
+  }
+}
+
+// ─── CALCULATIONS ─────────────────────────────────────────────────────────────
+function calcAmt(driver, miles) {
+  const prev = journeys.filter(j => j.driver === driver).reduce((s, j) => s + j.miles, 0);
+  const b10 = Math.max(0, 10000 - prev); let a = 0, r = miles;
+  if (b10 > 0) { const at = Math.min(r, b10); a += at * 0.45; r -= at; }
+  if (r > 0) a += r * 0.25;
+  return a;
+}
+
+function recalc() {
+  ['Philip', 'Jack'].forEach(d => {
+    const sorted = journeys.filter(j => j.driver === d).sort((a, b) => new Date(a.date) - new Date(b.date));
+    let run = 0;
+    sorted.forEach(j => {
+      const b10 = Math.max(0, 10000 - run); let a = 0, r = j.miles;
+      if (b10 > 0) { const at = Math.min(r, b10); a += at * 0.45; r -= at; }
+      if (r > 0) a += r * 0.25; j.amount = a; run += j.miles;
+    });
+  });
+}
+
+function getRateBadge(driver, id) {
+  const sorted = [...journeys].filter(j => j.driver === driver).sort((a, b) => new Date(a.date) - new Date(b.date));
+  let run = 0;
+  for (const j of sorted) {
+    if (j.id === id) {
+      if (run + j.miles <= 10000) return '45p/mi';
+      if (run >= 10000) return '25p/mi';
+      return 'Mixed';
+    }
+    run += j.miles;
+  }
+  return '45p/mi';
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function render() { recalc(); renderCards(); renderTable(); }
+
+function renderCards() {
+  const pJ = journeys.filter(j => j.driver === 'Philip');
+  const jJ = journeys.filter(j => j.driver === 'Jack');
+  const pt = pJ.reduce((s, j) => s + j.amount, 0), pm = pJ.reduce((s, j) => s + j.miles, 0);
+  const jt = jJ.reduce((s, j) => s + j.amount, 0), jm = jJ.reduce((s, j) => s + j.miles, 0);
+  const c = pt + jt;
+  document.getElementById('pTot').textContent = fmt(pt);
+  document.getElementById('pMi').textContent = pm.toLocaleString() + ' miles recorded';
+  document.getElementById('jTot').textContent = fmt(jt);
+  document.getElementById('jMi').textContent = jm.toLocaleString() + ' miles recorded';
+  document.getElementById('cTot').textContent = fmt(c);
+  document.getElementById('tSav').textContent = fmt(c * 0.20);
+}
+
+function renderTable() {
+  const tb = document.getElementById('jTable');
+  const rows = cf === 'all' ? journeys : journeys.filter(j => j.driver === cf);
+  document.getElementById('jCount').textContent = journeys.length;
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No journeys recorded yet.</td></tr>'; return; }
+  tb.innerHTML = [...rows].sort((a, b) => new Date(b.date) - new Date(a.date)).map(j => `
+    <tr>
+      <td style="white-space:nowrap;">${fmtDate(j.date)}</td>
+      <td><span class="badge ${j.driver === 'Philip' ? 'p-badge' : 'j-badge'}">${j.driver}</span></td>
+      <td>${j.client}</td>
+      <td style="color:var(--text-light);font-size:12px;">${j.purpose}</td>
+      <td>${j.miles}</td>
+      <td><span class="rb">${getRateBadge(j.driver, j.id)}</span></td>
+      <td class="amt">${fmt(j.amount)}</td>
+      <td><button class="del" onclick="delJourney('${j.id}')">×</button></td>
+    </tr>`).join('');
+}
+
+function renderMonthly() {
+  const con = document.getElementById('mSummary');
+  const mo = {};
+  journeys.forEach(j => {
+    const d = new Date(j.date);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const lab = d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+    if (!mo[k]) mo[k] = { lab, p: { m: 0, a: 0 }, j: { m: 0, a: 0 } };
+    if (j.driver === 'Philip') { mo[k].p.m += j.miles; mo[k].p.a += j.amount; }
+    else { mo[k].j.m += j.miles; mo[k].j.a += j.amount; }
+  });
+  const keys = Object.keys(mo).sort().reverse();
+  if (!keys.length) { con.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-light);font-size:13px;">No journeys yet.</div>'; return; }
+  con.innerHTML = keys.map(k => {
+    const m = mo[k], tot = m.p.a + m.j.a;
+    return `<div class="mc">
+      <div class="mc-hd"><h3>${m.lab}</h3><p>Total: ${fmt(tot)}</p></div>
+      ${m.p.m > 0 ? `<div class="mrow"><span>Philip — ${m.p.m} miles</span><span style="color:var(--green);">${fmt(m.p.a)}</span></div>` : ''}
+      ${m.j.m > 0 ? `<div class="mrow"><span>Jack — ${m.j.m} miles</span><span style="color:var(--info);">${fmt(m.j.a)}</span></div>` : ''}
+      <div class="mtot"><span>Business expense — self-assessment claim</span><span>${fmt(tot)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderExport() {
+  const pJ = [...journeys.filter(j => j.driver === 'Philip')].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const jJ = [...journeys.filter(j => j.driver === 'Jack')].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const pt = pJ.reduce((s, j) => s + j.amount, 0), pm = pJ.reduce((s, j) => s + j.miles, 0);
+  const jt = jJ.reduce((s, j) => s + j.amount, 0), jm = jJ.reduce((s, j) => s + j.miles, 0);
+  const c = pt + jt;
+  document.getElementById('pAnn').innerHTML = pJ.length
+    ? pJ.map(j => `<div class="mrow"><span>${fmtDate(j.date)} · ${j.client}</span><span style="color:var(--green);">${fmt(j.amount)}</span></div>`).join('')
+    : '<div style="padding:16px 18px;color:var(--text-light);font-size:13px;">No journeys.</div>';
+  document.getElementById('pAnnTot').textContent = fmt(pt);
+  document.getElementById('jAnn').innerHTML = jJ.length
+    ? jJ.map(j => `<div class="mrow"><span>${fmtDate(j.date)} · ${j.client}</span><span style="color:var(--info);">${fmt(j.amount)}</span></div>`).join('')
+    : '<div style="padding:16px 18px;color:var(--text-light);font-size:13px;">No journeys.</div>';
+  document.getElementById('jAnnTot').textContent = fmt(jt);
+  document.getElementById('ex-pm').textContent = pm.toLocaleString() + ' miles';
+  document.getElementById('ex-jm').textContent = jm.toLocaleString() + ' miles';
+  document.getElementById('ex-pt').textContent = fmt(pt);
+  document.getElementById('ex-jt').textContent = fmt(jt);
+  document.getElementById('ex-ct').textContent = fmt(c);
+  document.getElementById('ex-ts').textContent = fmt(c * 0.20);
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(t) {
+  ['log', 'clients', 'summary', 'export'].forEach(x => {
+    document.getElementById('tab-' + x).style.display = x === t ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['log', 'clients', 'summary', 'export'][i] === t);
+  });
+  if (t === 'summary') renderMonthly();
+  if (t === 'export') renderExport();
+  if (t === 'clients') renderCM();
+}
+
+function filter(f, btn) {
+  cf = f;
+  document.querySelectorAll('.fb').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); renderTable();
+}
+
+// ─── EXPORT CSV ──────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [['Date', 'Driver', 'Destination', 'Business Purpose', 'Miles', 'Rate', 'Amount (£)']];
+  [...journeys].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(j => {
+    rows.push([fmtDate(j.date), j.driver, j.client, j.purpose, j.miles, getRateBadge(j.driver, j.id), j.amount.toFixed(2)]);
+  });
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+    download: 'gecko_it_mileage_2026_27.csv'
+  });
+  a.click(); toast('CSV downloaded');
+}
+
+// ─── UTILITIES ───────────────────────────────────────────────────────────────
+function fmt(n) { return '£' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function fmtDate(d) { if (!d) return ''; const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`; }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── START ───────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
