@@ -323,7 +323,7 @@ tr:hover td { background: #fafaf8; }
 
 <div class="toast" id="toast"></div>
 
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const CLIENT_ID  = 'c41290c7-3747-4fc3-8e79-c452a7cab1f7';
@@ -368,6 +368,9 @@ let journeys = [], clients = [], cf = 'all', accessToken = null;
 // ─── AUTH ────────────────────────────────────────────────────────────────────
 async function init() {
   try {
+    if (typeof msal === 'undefined') {
+      throw new Error('MSAL library not loaded — check ad blocker or network');
+    }
     msalInstance = new msal.PublicClientApplication(msalConfig);
     await msalInstance.initialize();
     console.log('MSAL initialized OK');
