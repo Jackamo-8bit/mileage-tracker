@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gecko IT Services — Mileage Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -324,6 +323,7 @@ tr:hover td { background: #fafaf8; }
 
 <div class="toast" id="toast"></div>
 
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const CLIENT_ID  = 'c41290c7-3747-4fc3-8e79-c452a7cab1f7';
@@ -345,7 +345,7 @@ const msalConfig = {
   cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
 };
 
-let msalInstance = null; // Created in init() after MSAL lib confirmed loaded
+let msalInstance = null;
 
 // ─── DEFAULT CLIENTS ──────────────────────────────────────────────────────────
 const DEFAULTS = [
@@ -367,22 +367,33 @@ let journeys = [], clients = [], cf = 'all', accessToken = null;
 
 // ─── AUTH ────────────────────────────────────────────────────────────────────
 async function init() {
-  msalInstance = new msal.PublicClientApplication(msalConfig);
-  await msalInstance.initialize();
-  // Check if already signed in from a previous session
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length > 0) {
-    try {
-      const tokenResp = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
-      showApp(accounts[0]);
-      await loadData();
-    } catch (e) {
-      console.warn('Silent token failed, user must sign in again:', e);
+  try {
+    msalInstance = new msal.PublicClientApplication(msalConfig);
+    await msalInstance.initialize();
+    console.log('MSAL initialized OK');
+    // Check if already signed in from a previous session
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      try {
+        const tokenResp = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
+        showApp(accounts[0]);
+        await loadData();
+      } catch (e) {
+        console.warn('Silent token failed, user must sign in again:', e);
+      }
     }
+  } catch (e) {
+    console.error('MSAL init failed:', e);
+    toast('Auth setup failed: ' + e.message);
   }
 }
 
 async function signIn() {
+  if (!msalInstance) {
+    toast('Still loading, please wait...');
+    await init();
+    if (!msalInstance) { toast('Auth failed to load. Try refreshing.'); return; }
+  }
   try {
     const resp = await msalInstance.loginPopup({ scopes: SCOPES });
     showApp(resp.account);
