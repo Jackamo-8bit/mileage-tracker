@@ -345,7 +345,7 @@ const msalConfig = {
   cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
 };
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+let msalInstance = null; // Created in init() after MSAL lib confirmed loaded
 
 // ─── DEFAULT CLIENTS ──────────────────────────────────────────────────────────
 const DEFAULTS = [
@@ -367,6 +367,7 @@ let journeys = [], clients = [], cf = 'all', accessToken = null;
 
 // ─── AUTH ────────────────────────────────────────────────────────────────────
 async function init() {
+  msalInstance = new msal.PublicClientApplication(msalConfig);
   await msalInstance.initialize();
   // Check if already signed in from a previous session
   const accounts = msalInstance.getAllAccounts();
@@ -821,7 +822,7 @@ function toast(msg) {
 }
 
 // ─── START ───────────────────────────────────────────────────────────────────
-init();
+window.addEventListener('load', init);
 </script>
 </body>
 </html>
